@@ -1,0 +1,34 @@
+1. What is 2 + 2?
+A) 3
+B) 4
+C) 5
+D) 6
+To'g'ri javob: B
+
+2. Python-da ro'yxatga element qo'shish funksiyasi?
+A) push
+B) add
+C) append
+D) insert
+Javob: C
+
+3. HTML nima?
+A) Dasturlash tili
+B) Ma'lumotlar bazasi
+C) HyperText Markup Language
+D) Operatsion tizim
+Correct: C
+
+4. CSS-da rang berish xossasi qaysi?
+A) background
+B) color
+C) border
+D) font-size
+Javob: B
+
+5. JavaScript-da o'zgaruvchi e'lon qilish kalit so'zi?
+A) var
+B) let
+C) const
+D) barchasi to'g'ri
+To'g'ri javob: D

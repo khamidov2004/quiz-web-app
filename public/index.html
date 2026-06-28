@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Automation Bot</title>
+    <meta name="description" content="Fayllardan avtomatik test yaratuvchi quiz bot">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- ========== 0. BOSH SAHIFA — Barcha quizlar ========== -->
+    <div id="home-screen" class="screen active">
+        <div class="container">
+            <div class="home-header">
+                <div>
+                    <div class="bot-icon-sm">🤖</div>
+                    <h1 class="hero-title">Quiz Automation Bot</h1>
+                    <p class="hero-desc">Tayyor testlardan birini tanlab, bilimingizni sinab ko'ring!</p>
+                </div>
+                <button class="admin-link" onclick="showAdminLogin()">⚙️ Admin</button>
+            </div>
+
+            <div id="quiz-list" class="quiz-list">
+                <!-- JS orqali to'ldiriladi -->
+            </div>
+
+            <div id="no-quizzes" class="empty-state hidden">
+                <div class="empty-icon">📝</div>
+                <p>Hozircha testlar yo'q.</p>
+                <p class="empty-sub">Admin panel orqali test fayllarini yuklang.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== ADMIN LOGIN ========== -->
+    <div id="admin-login-screen" class="screen hidden">
+        <div class="container center-content">
+            <div class="login-card">
+                <h2 class="login-title">🔐 Admin Panel</h2>
+                <p class="login-desc">Parolni kiriting</p>
+                <input type="password" id="admin-password" class="input-field" placeholder="Parol..."
+                    autocomplete="off">
+                <div id="login-error" class="login-error hidden">Parol noto'g'ri!</div>
+                <button class="btn-start" onclick="attemptLogin()">Kirish</button>
+                <button class="btn-back" onclick="showScreenById('home-screen')">← Orqaga</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== ADMIN PANEL ========== -->
+    <div id="admin-screen" class="screen hidden">
+        <div class="container">
+            <div class="admin-header">
+                <h1 class="section-title" style="text-align:left;margin:0;">⚙️ Admin Panel</h1>
+                <button class="btn-back" onclick="logoutAdmin()">Chiqish →</button>
+            </div>
+
+            <!-- Yangi test yuklash -->
+            <div class="admin-section">
+                <h3 class="admin-label">Yangi test yuklash</h3>
+                <input type="text" id="quiz-name-input" class="input-field"
+                    placeholder="Test nomi (masalan: Ingliz tili - Unit 3)">
+                <label class="dropzone" id="dropzone">
+                    <input type="file" id="file-input" accept=".txt,.pdf,.docx,.doc">
+                    <div class="dropzone-icon">📄</div>
+                    <p class="dropzone-title">Faylni tanlang yoki shu yerga tashlang</p>
+                    <p class="dropzone-formats">TXT, PDF, DOCX</p>
+                </label>
+                <div id="upload-status" class="upload-status"></div>
+            </div>
+
+            <!-- Mavjud testlar -->
+            <div class="admin-section">
+                <h3 class="admin-label">Mavjud testlar</h3>
+                <div id="admin-quiz-list" class="admin-quiz-list">
+                    <!-- JS orqali -->
+                </div>
+                <div id="admin-no-quizzes" class="empty-state-sm hidden">
+                    <p>Hozircha testlar yo'q.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== QUIZ SOZLAMALARI ========== -->
+    <div id="settings-screen" class="screen hidden">
+        <div class="container">
+            <h4 class="section-subtitle">QUIZ AUTOMATION BOT</h4>
+            <h1 class="section-title" id="settings-quiz-name">Bilimingizni sinang</h1>
+            <p class="section-desc">Jami <strong id="total-questions-count">0</strong> ta savol. Sozlamalarni tanlang va
+                boshlang.</p>
+
+            <div class="settings-card">
+                <div class="settings-group">
+                    <label class="group-label">Nechta savol?</label>
+                    <div class="pill-grid" id="q-count-options">
+                        <button class="pill active" data-value="10">10</button>
+                        <button class="pill" data-value="20">20</button>
+                        <button class="pill" data-value="50">50</button>
+                        <button class="pill" data-value="all">Hammasi</button>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <label class="group-label">Rejim</label>
+                    <div class="pill-grid mode-grid" id="mode-options">
+                        <button class="pill mode-pill active" data-value="mashq">
+                            <strong>Mashq</strong>
+                            <span>javob darhol</span>
+                        </button>
+                        <button class="pill mode-pill" data-value="imtihon">
+                            <strong>Imtihon</strong>
+                            <span>natija oxirida</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="toggle-row">
+                    <label class="toggle">
+                        <input type="checkbox" id="shuffle-toggle" checked>
+                        <span class="toggle-track"></span>
+                    </label>
+                    <span class="toggle-text">Savollarni aralashtirish</span>
+                </div>
+
+                <button class="btn-start" onclick="startQuiz()">Boshlash</button>
+                <button class="btn-back" onclick="showScreenById('home-screen')" style="margin-top:10px;">←
+                    Orqaga</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== QUIZ EKRANI ========== -->
+    <div id="quiz-screen" class="screen hidden">
+        <div class="quiz-wrapper">
+            <div class="quiz-topbar">
+                <button class="exit-btn" onclick="exitQuiz()">← Chiqish</button>
+                <div class="quiz-meta">
+                    <span class="q-counter"><span id="current-q">1</span> / <span id="total-q">20</span></span>
+                    <span class="score-badge" id="score-badge">0 to'g'ri</span>
+                </div>
+            </div>
+
+            <div class="quiz-progress">
+                <div class="quiz-progress-fill" id="progress"></div>
+            </div>
+
+            <div class="question-card">
+                <p class="q-label" id="q-label">SAVOL 1</p>
+                <h2 class="q-text" id="question-text">Savol matni</h2>
+                <div class="choices" id="options-container"></div>
+            </div>
+
+            <div class="quiz-bottom">
+                <button class="btn-next hidden" id="next-btn" onclick="nextQuestion()">Keyingi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== NATIJA EKRANI ========== -->
+    <div id="result-screen" class="screen hidden">
+        <div class="container">
+            <div class="result-card">
+                <div class="result-emoji" id="result-emoji">🎉</div>
+                <h1 class="result-title">Test yakunlandi!</h1>
+                <div class="result-circle">
+                    <div class="circle-score" id="final-score">0</div>
+                    <div class="circle-total">/ <span id="final-total">0</span></div>
+                </div>
+                <p class="result-percent" id="result-percent">0%</p>
+                <p class="result-feedback" id="feedback-text">Ajoyib natija!</p>
+                <div class="result-actions">
+                    <button class="btn-secondary" onclick="showScreenById('home-screen')">Bosh sahifa</button>
+                    <button class="btn-primary" onclick="retakeQuiz()">Qayta ishlash</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== LOADING ========== -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-card">
+            <div class="spinner"></div>
+            <p class="loading-text">AI savollarni tahlil qilmoqda...</p>
+            <p class="loading-sub">Iltimos, bir oz kuting</p>
+        </div>
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
