@@ -163,24 +163,14 @@ app.post('/api/quizzes', async (req, res) => {
                 createdAt: saved.createdAt
             });
         } else {
-            const quizzes = readQuizzes();
-            const newQuiz = {
-                id: Date.now().toString(),
-                name: name,
-                questions: questions,
-                createdAt: new Date().toLocaleDateString('uz-UZ')
-            };
-
-            quizzes.push(newQuiz);
-            if (writeQuizzes(quizzes)) {
-                res.status(201).json(newQuiz);
-            } else {
-                res.status(500).json({ error: "Serverda testni saqlash iloji bo'lmadi." });
-            }
+            // Netlify filesystem is read-only, so quizzes.json write always fails. Return a descriptive DB error.
+            res.status(500).json({ 
+                error: "Ma'lumotlar bazasiga ulanib bo'lmadi (isMongoConnected=false). Netlify-da MONGODB_URI va MongoDB Atlas-da Network Access (0.0.0.0/0) sozlamalari to'g'ri ekanligini tekshiring." 
+            });
         }
     } catch (e) {
         console.error("Testni saqlashda xatolik:", e);
-        res.status(500).json({ error: "Testni saqlash iloji bo'lmadi." });
+        res.status(500).json({ error: "Ma'lumotlar bazasiga saqlashda xatolik yuz berdi: " + e.message });
     }
 });
 
