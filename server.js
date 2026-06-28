@@ -152,9 +152,30 @@ app.post('/api/quizzes', async (req, res) => {
         return res.status(400).json({ error: "Noto'g'ri ma'lumotlar formati." });
     }
 
+    // Sanitize and filter questions to prevent Mongoose schema validation failures
+    const cleanedQuestions = questions
+        .map(q => {
+            const options = Array.isArray(q.options)
+                ? q.options.map(o => typeof o === 'string' ? o.trim() : '').filter(o => o !== '')
+                : [];
+            return {
+                question: typeof q.question === 'string' ? q.question.trim() : '',
+                options: options,
+                correctAnswer: typeof q.correctAnswer === 'string' ? q.correctAnswer.trim() : ''
+            };
+        })
+        .filter(q => {
+            // Keep only questions with a valid non-empty question body, at least 2 options, and a correct answer
+            return q.question.length > 0 && q.options.length >= 2 && q.correctAnswer.length > 0;
+        });
+
+    if (cleanedQuestions.length === 0) {
+        return res.status(400).json({ error: "Fayldan yaroqli savollar topilmadi. Variantlar va to'g'ri javoblar ko'rsatilganiga ishonch hosil qiling." });
+    }
+
     try {
         if (isMongoConnected) {
-            const newQuiz = new Quiz({ name, questions });
+            const newQuiz = new Quiz({ name, questions: cleanedQuestions });
             const saved = await newQuiz.save();
             res.status(201).json({
                 id: saved._id.toString(),
@@ -235,6 +256,7 @@ Qoidalarga qat'iy rioya qiling:
    - "question": Savolning to'liq matni (hech qanday boshidagi "1.", "Savol:" kabi raqamlar yoki prefikslarsiz).
    - "options": Variantlar ro'yxati (kamida 2 ta, odatda 4 ta). Variantlar boshidagi "A)", "B.", "C-" kabi harf va belgilarni olib tashlang. Faqat toza variant matnini yozing.
    - "correctAnswer": To'g'ri javobning aniq matni. Bu matn "options" ro'yxatidagi variantlardan biriga harfma-harf mos kelishi shart.
+   - Hech qaysi maydon bo'sh string ("") yoki null bo'lmasin. Agar savolda variantlar chala, o'chib ketgan yoki bo'sh bo'lsa, ularni sun'iy intellekt sifatida mantiqan to'ldiring (to'g'rilab keting) yoki o'sha savol obyekti ro'yxatga qo'shilmasin.
 2. To'g'ri javobni qanday aniqlash mumkin:
    - Matnda to'g'ri javob alohida "Javob: A", "Kalit: B", "To'g'ri javob: C" yoki shunga o'xshash ko'rinishda yozilgan bo'lishi mumkin.
    - Variantlar ichida to'g'ri javobning boshida "+" yoki "*" belgisi bo'lishi mumkin (masalan: "*A) Variant matni" yoki "+B) Variant matni").

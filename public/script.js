@@ -277,6 +277,33 @@ async function confirmDelete(id) {
     }
 }
 
+function splitTextIntoChunks(text, maxLen = 7000) {
+    const lines = text.split('\n');
+    const chunks = [];
+    let currentChunk = [];
+    let currentLen = 0;
+
+    for (const line of lines) {
+        // Test if the line starts a new question (e.g. "1.", "12)", "Question 5:", "Savol 1:")
+        const isNewQuestion = /^(?:question\s+|savol\s+|test\s+|№\s*)?\d+\s*[\.\)\-\:\s\u2013\u2014]/i.test(line.trim());
+        
+        if (isNewQuestion && currentLen > maxLen) {
+            chunks.push(currentChunk.join('\n'));
+            currentChunk = [];
+            currentLen = 0;
+        }
+        
+        currentChunk.push(line);
+        currentLen += line.length + 1; // +1 for newline
+    }
+    
+    if (currentChunk.length > 0) {
+        chunks.push(currentChunk.join('\n'));
+    }
+    
+    return chunks;
+}
+
 // ============================
 // FILE UPLOAD + PARSE
 // ============================
@@ -313,26 +340,47 @@ ui.file.addEventListener('change', async (e) => {
         let aiSuccess = false;
 
         try {
-            const response = await fetch('/api/parse-quiz', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ text })
+            const chunks = splitTextIntoChunks(text);
+            console.log(`Splitting text into ${chunks.length} chunks for AI parsing...`);
+            
+            const chunkPromises = chunks.map(async (chunk, idx) => {
+                const response = await fetch('/api/parse-quiz', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: chunk })
+                });
+
+                if (response.ok) {
+                    const resData = await response.json();
+                    if (resData.success && Array.isArray(resData.questions)) {
+                        return resData.questions;
+                    }
+                }
+                throw new Error(`Chunk ${idx + 1} parsing failed`);
             });
 
-            if (response.ok) {
-                const resData = await response.json();
-                if (resData.success && Array.isArray(resData.questions) && resData.questions.length > 0) {
-                    parsedQuestions = resData.questions;
-                    aiSuccess = true;
+            // Use Promise.allSettled to gather results even if some chunks fail
+            const results = await Promise.allSettled(chunkPromises);
+            let successCount = 0;
+            results.forEach((r, idx) => {
+                if (r.status === 'fulfilled' && r.value) {
+                    parsedQuestions = parsedQuestions.concat(r.value);
+                    successCount++;
+                } else {
+                    console.warn(`Chunk ${idx + 1} AI parsing failed:`, r.reason);
                 }
+            });
+
+            if (successCount > 0) {
+                aiSuccess = true;
             }
         } catch (aiErr) {
-            console.error("AI orqali tahlil qilishda xatolik, offline parserga o'tilmoqda:", aiErr);
+            console.error("AI orqali tahlil qilishda umumiy xatolik:", aiErr);
         }
 
-        if (!aiSuccess) {
+        if (!aiSuccess || parsedQuestions.length === 0) {
             console.warn("AI parser ishlamadi. Local offline parserdan foydalaniladi.");
             parsedQuestions = parseQuestions(text);
         }
