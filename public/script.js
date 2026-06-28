@@ -117,16 +117,25 @@ async function addQuiz(name, questions) {
             const idx = cachedQuizzes.findIndex(q => q.id === newQuiz.id);
             if (idx !== -1) cachedQuizzes[idx] = savedQuiz;
             localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedQuizzes));
+            return true;
         } else {
-            throw new Error("Server testni saqlay olmadi");
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || "Server testni saqlay olmadi");
         }
     } catch(e) {
-        console.warn("Serverda saqlash bajarilmadi (localStorage-da saqlandi):", e);
+        console.warn("Serverda saqlash bajarilmadi:", e);
+        // Revert optimistic update
+        cachedQuizzes = cachedQuizzes.filter(q => q.id !== newQuiz.id);
+        renderHome();
+        renderAdminQuizList();
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedQuizzes));
+        alert("Xatolik: Testni serverga saqlashda xato yuz berdi!\nSababi: " + e.message);
+        return false;
     }
 }
 
 async function deleteQuiz(id) {
+    const originalQuizzes = [...cachedQuizzes];
     cachedQuizzes = cachedQuizzes.filter(q => q.id !== id);
     renderHome();
     renderAdminQuizList();
@@ -140,12 +149,20 @@ async function deleteQuiz(id) {
         });
         if (res.ok) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedQuizzes));
+            return true;
         } else {
-            throw new Error("Server testni o'chira olmadi");
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || "Server testni o'chira olmadi");
         }
     } catch(e) {
-        console.warn("Serverdan o'chirish bajarilmadi (localStorage-dan o'chirildi):", e);
+        console.warn("Serverdan o'chirish bajarilmadi:", e);
+        // Revert optimistic deletion
+        cachedQuizzes = originalQuizzes;
+        renderHome();
+        renderAdminQuizList();
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedQuizzes));
+        alert("Xatolik: Testni serverdan o'chirishda xatolik yuz berdi!\nSababi: " + e.message);
+        return false;
     }
 }
 
@@ -323,14 +340,18 @@ ui.file.addEventListener('change', async (e) => {
         ui.loading.classList.add('hidden'); // Hide loading screen
 
         if (parsedQuestions.length > 0) {
-            await addQuiz(quizName, parsedQuestions);
-            if (aiSuccess) {
-                ui.status.innerHTML = '<span style="color:#388e61;">✅ Sun\'iy intellekt orqali ' + parsedQuestions.length + ' ta savol muvaffaqiyatli yuklandi!</span>';
+            const success = await addQuiz(quizName, parsedQuestions);
+            if (success) {
+                if (aiSuccess) {
+                    ui.status.innerHTML = '<span style="color:#388e61;">✅ Sun\'iy intellekt orqali ' + parsedQuestions.length + ' ta savol muvaffaqiyatli yuklandi!</span>';
+                } else {
+                    ui.status.innerHTML = '<span style="color:#e88b30;">⚠️ AI ishlamadi, offline parser orqali ' + parsedQuestions.length + ' ta savol yuklandi!</span>';
+                }
+                $('quiz-name-input').value = '';
+                ui.file.value = '';
             } else {
-                ui.status.innerHTML = '<span style="color:#e88b30;">⚠️ AI ishlamadi, offline parser orqali ' + parsedQuestions.length + ' ta savol yuklandi!</span>';
+                ui.status.innerHTML = '<span style="color:#ea4335;">❌ Serverga saqlashda xatolik yuz berdi. Qayta urinib ko\'ring.</span>';
             }
-            $('quiz-name-input').value = '';
-            ui.file.value = '';
         } else {
             ui.status.innerHTML = '<span style="color:#ea4335;">❌ Savollarni ajratib bo\'lmadi. Fayl formatini tekshiring.</span>';
         }
